@@ -6,6 +6,7 @@ function App() {
   const [inputs, setInputs] = useState<MIDIInput[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [messages, setMessages] = useState<string[]>([]);
   const [sysexEnabled, setSysexEnabled] = useState(false);
 
 useEffect(() => {
@@ -47,33 +48,38 @@ useEffect(() => {
 useEffect(() => {
   const handleMidiMessage = (event: MIDIMessageEvent) => {
     if (!event.data) return;
-    const command = event.data[0];
-    const note = event.data[1];
-    const velocity = event.data[2];
+    const [command, note, velocity] = event.data;
 
-    console.log('event', event)
+    console.log('event', event);
 
-    if (command === 178) { // Note On
-      setMessage(`Attack: ${note}, Velocity: ${velocity}`);
-    } else if (command === 128) { // Note Off
-      setMessage(`Note Off: ${note}`);
-    } else if (command === 176) { // Control Change
-      setMessage(`Control Change: ${note}, Value: ${velocity}`);
+    let newMessage = '';
+    switch (command) {
+      case 178: // Note On
+        newMessage = `Note On: ${note}, Velocity: ${velocity}`;
+        break;
+      case 128: // Note Off
+        newMessage = `Note Off: ${note}`;
+        break;
+      case 176: // Control Change
+        newMessage = `Control Change: ${note}, Value: ${velocity}`;
+        break;
+      default:
+        newMessage = `Unhandled MIDI command: ${command}`;
     }
 
-
-  }
+    setMessages(prevMessages => [...prevMessages, newMessage]);
+  };
 
   inputs.forEach(input => {
     input.onmidimessage = handleMidiMessage;
-  })
+  });
 
   return () => {
     inputs.forEach(input => {
-      input.onmidimessage = null
-    })
-  }
-},[inputs])
+      input.onmidimessage = null;
+    });
+  };
+}, [inputs])
 
 const noMidi = !navigator.requestMIDIAccess;
 
@@ -104,12 +110,14 @@ console.log(message)
         )}
       </div>
 
-      {message && (
+      {messages.length > 0 && (
         <div>
-          <h2>Last MIDI Message:</h2>
-          <p>
-            {message}
-          </p>
+          <h2>MIDI Messages:</h2>
+          <ul>
+            {messages.map((msg, index) => (
+              <li key={index}>{msg}</li>
+            ))}
+          </ul>
         </div>
       )}
     </>
